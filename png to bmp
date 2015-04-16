@@ -1,0 +1,204 @@
+package dahni.bitmap;
+
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
+import android.widget.GridView;
+import android.widget.ImageView;
+
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+
+// new class to build adapter from
+public class PuzzleAdapter extends BaseAdapter {
+
+    // create array to hold number of images
+    private Integer[] images;
+
+    // grabs a context of the activity to use it later to place view into
+    private Context myContext;
+
+    // create array of bitmap containers to hold resized bitmaps of original images
+    private Bitmap[] cache;
+
+
+
+    // constructor in order to use new syntax to create object from this class
+    public PuzzleAdapter(Context c) {
+        // use pre made context. In main activity, context will be set to "this" to refer to itself
+        // it is where everything will go
+        myContext = c;
+
+        // figure out how much space needs to be prepared in arrays created above to input images.
+        // use this so as not to manually input one img after the other
+
+        // fill an array with info of fields in drawable image folder.
+        Field[] list = R.drawable.class.getFields();
+
+////print out names
+//for (int i = 0; i < list.length;i++){
+//String lister = list[i].getName();
+//Log.i("fields",lister);        }
+
+        // variables to traverse images in for loops
+        int count = 0, index = 0, j = list.length;
+
+        // loop through field list to find out number of img's it contains
+        // this does nothing but increment counter upon finding an image
+        for (int i = 0; i < j; i++) {
+            // if file ends with any of the 3 mime types, increase counter.
+            if (list[i].getName().startsWith("img_")) count++;
+
+//// print out names
+//String pics = Integer.toString(count);
+//Log.i("pics that exist",pics);
+        }
+
+        // now we know how many imgs there are
+        // set array space
+        images = new Integer[count];
+        cache = new Bitmap[count];
+
+        // place the id's of the img's into images array
+        try {
+            for (int i = 0; i < j; i++) {
+                if (list[i].getName().startsWith("img_")) {
+                    images[index++] = list[i].getInt(null);
+                }
+            }
+        } catch (Exception e) {
+            // handle error
+
+        }
+//        catch (IllegalAccessException e) {
+//
+//        }
+    }
+        // override getCount, getItemId, and getView methods from BaseAdapter class
+
+    // this method supplies the number of items getView has to handle to create views for all of them
+    @Override
+        public int getCount(){
+        return images.length;
+        }
+
+        @Override
+        public Object getItem(int position){
+        return null;
+        }
+
+    // images array contains the id's of all pictures.
+    // this method iterates over images array to get each item id.
+        @Override
+        public long getItemId(int position){
+            return images[position];
+        }
+
+    //  views are created for each picture to display on screen.
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent){
+
+        // create view variable
+        ImageView frame;
+
+
+            // create vars to hold screen width and height
+            int w = (int)((double) myContext.getResources().getDisplayMetrics().widthPixels * (.45));
+            // i divide by three because I want to fit 3 views per row.
+            // ex: if screen is width of 1080, then each view would be 360 px wide.
+
+
+
+            // i dont need to know the hieght of the screen because the img will be scaled according to
+            // width enlargement ratio
+            //int h = w; //(int)((double) myContext.getResources().getDisplayMetrics().heightPixels * (.45));
+//            Log.i("screen width",Integer.toString((int)w));
+
+            // convertView will be null is no view was previously created
+        if (convertView == null){
+
+            // create new view
+            frame = new ImageView(myContext);
+            frame.setLayoutParams(new GridView.LayoutParams(w, w/*pixels*/));
+        }
+        else{
+            // recycle an old view
+            frame = (ImageView)convertView;
+        }
+
+        if (cache[position] == null){
+
+            Bitmap preImg = loadBitmap(myContext.getResources(), images[position], w, w);
+
+            int preImgHeight = preImg.getHeight();
+
+            int preImgWidth = preImg.getWidth();
+            double ratioW = ((double)w/preImgWidth);
+            double ratioH = ((double)w/preImgHeight);
+
+            if (preImgHeight > preImgWidth){
+
+                int resizedW = (int) (ratioH * preImgWidth);
+                int resizedH = (int) (ratioH * preImgHeight);
+
+                cache[position]  = Bitmap.createScaledBitmap(preImg, resizedW, resizedH, false);
+                preImg.recycle();
+            }
+            else{
+
+                int resizedW = (int) (ratioW * preImgWidth);
+                int resizedH = (int) (ratioW * preImgHeight);
+
+                cache[position]  = Bitmap.createScaledBitmap(preImg, resizedW, resizedH, false);
+
+                preImg.recycle();
+            }
+        }
+            frame.setImageBitmap(cache[position]);
+            return frame;
+    }
+
+
+    public static int subSampSize(BitmapFactory.Options options, int reqWidth , int reqHeight)
+    { 
+        final int rawHeight = (options.outHeight) * 3;
+
+
+        final int rawWidth = (options.outWidth) * 3;
+
+        int change = 1;
+
+        if (rawHeight > reqHeight || rawWidth > reqWidth )
+        {
+            final int rawHalfH = rawHeight/2;
+            final int rawHalfW = rawWidth/2;
+
+            while ((rawHalfH / change) > reqHeight
+                    || (rawHalfW/ change) > reqWidth)
+            {
+                change *= 2;
+            }
+
+        }
+        return change;
+    }
+
+    public static Bitmap loadBitmap(Resources res, int resId, int reqWidth, int reqHeight)
+    {
+
+        final BitmapFactory.Options raw = new BitmapFactory.Options();
+        raw.inJustDecodeBounds = true;
+        BitmapFactory.decodeResource(res, resId, raw);
+        raw.inSampleSize = subSampSize(raw, reqWidth, reqHeight);
+
+        raw.inJustDecodeBounds = false;
+        return BitmapFactory.decodeResource(res, resId, raw);
+
+    }
+
+}
